@@ -7,14 +7,14 @@ import logging
 
 # The callback for when the client receives a CONNACK response from the server.
 def on_connect(client, userdata, flags, rc):
-    if  rc==0:
-        logger.info('MQTT: connected to client: %s port: %s with result code: %i: %s', client._host, client._port, rc, mqtt.connack_string(rc))
+    logger.info('MQTT: connection to client: %s port: %s with result code: %i: %s', client._host, client._port, rc, mqtt.connack_string(rc))
 
     # Subscribing in on_connect() means that if we lose the connection and
     # reconnect then subscriptions will be renewed.
-    for association in cfg['mqtt.association']:
-        client.subscribe(association['topic'])
-        logger.info('MQTT: subscribed to topic: %s sensor: %s', association['topic'], association['sensor'])
+    if rc==0:
+        for association in cfg['mqtt.association']:
+            client.subscribe(association['topic'])
+            logger.info('MQTT: subscribed to topic: %s sensor: %s', association['topic'], association['sensor'])
 
 # The callback for when a PUBLISH message is received from the server.
 def on_message(client, userdata, msg):
