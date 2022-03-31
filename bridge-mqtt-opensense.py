@@ -12,9 +12,9 @@ def on_connect(client, userdata, flags, rc):
 
     # Subscribing in on_connect() means that if we lose the connection and
     # reconnect then subscriptions will be renewed.
-    for topic in cfg['mqtt.topics']:
-        client.subscribe(topic)
-        logger.info('MQTT: subscribed to topic: %s', topic)
+    for association in cfg['mqtt.association']:
+        client.subscribe(association['topic'])
+        logger.info('MQTT: subscribed to topic: %s sensor: %s', association['topic'], association['sensor'])
 
 # The callback for when a PUBLISH message is received from the server.
 def on_message(client, userdata, msg):
@@ -22,7 +22,14 @@ def on_message(client, userdata, msg):
 
     json_payload = json.loads(msg.payload.decode('utf8'))
     
-    post_req = requests.post(cfg['opensense.host'], headers={'Content-Type':'application/json', 'Authorization': cfg['opensense.authorization']}, json = json_payload)
+    # association is the mapping between the mqtt topic and the sensor_id for opensensemap    
+    for association in cfg['mqtt.association']:
+        if msg.topic == association['topic']:
+            full_host = cfg['opensense.host']+'/'+cfg['opensense.box']+'/'+association['sensor']
+            logger.debug('full_host to opensensemap: %s', full_host)
+            break
+      
+    post_req = requests.post(full_host, headers={'Content-Type':'application/json', 'Authorization': cfg['opensense.authorization']}, json = json_payload)
     logger.info('Opensensemap: %i response from post: %s', post_req.status_code, post_req.reason)
     
     
