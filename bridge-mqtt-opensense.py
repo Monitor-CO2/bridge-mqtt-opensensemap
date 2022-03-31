@@ -2,29 +2,46 @@ import paho.mqtt.client as mqtt
 import requests
 import json
 import config
+import argparse
+import logging
 
 # The callback for when the client receives a CONNACK response from the server.
 def on_connect(client, userdata, flags, rc):
     if  rc==0:
-        print('MQTT: connected to client with result code '+str(rc))
+        logger.info('MQTT: connected to client: %s port: %s with result code: %i: %s', client._host, client._port, rc, mqtt.connack_string(rc))
 
     # Subscribing in on_connect() means that if we lose the connection and
     # reconnect then subscriptions will be renewed.
     for topic in cfg['mqtt.topics']:
         client.subscribe(topic)
+        logger.info('MQTT: subscribed to topic: %s', topic)
 
 # The callback for when a PUBLISH message is received from the server.
 def on_message(client, userdata, msg):
-    print(msg.topic+" "+str(msg.payload))
+    logger.info('MQTT: topic: %s received msg: %s', msg.topic, msg.payload)
 
-    my_json = msg.payload.decode('utf8')
-    print("JSON:",my_json)
-    json_payload = json.loads(my_json)
+    json_payload = json.loads(msg.payload.decode('utf8'))
     
     post_req = requests.post(cfg['opensense.host'], headers={'Content-Type':'application/json', 'Authorization': cfg['opensense.authorization']}, json = json_payload)
-    print("Response: ", post_req.status_code, post_req.reason)
+    logger.info('Opensensemap: %i response from post: %s', post_req.status_code, post_req.reason)
     
-cfg = config.Config('bridge.cfg')
+    
+cmparser = argparse.ArgumentParser(description='Bridge from a MQTT broker to Opensensemap.')
+cmparser.add_argument("-f", "--configfile", dest="configfile", help="Config file name. Default: bridge.cfg")
+cmparser.add_argument("-l", "--log", dest="logLevel", choices=['DEBUG', 'INFO', 'WARNING', 'ERROR', 'CRITICAL'], help="Set the logging level")
+
+args = cmparser.parse_args()
+if args.logLevel:
+    logging.basicConfig(level=getattr(logging, args.logLevel), format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+
+logger = logging.getLogger(__name__)
+
+if args.configfile == None:
+    args.configfile = 'bridge.cfg'
+    
+logger.debug('Using config file: %s', args.configfile)    
+    
+cfg = config.Config(args.configfile)
 
 client = mqtt.Client()
 client.on_connect = on_connect
